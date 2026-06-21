@@ -3,7 +3,7 @@ from video_processing import load_models, process_video
 # load once
 yolo_model, siglip_model, siglip_processor = load_models()
 
-video_path = "data/video_samples/CCTV Kit sample Video 480P.mp4"
+video_path = "data/video_samples/The CCTV People Demo 6.mp4"
 
 metadata_df, total_embd = process_video(
     video_path=video_path,

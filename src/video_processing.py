@@ -44,6 +44,7 @@ def process_video(
     siglip_model,
     siglip_processor,
     frame_sample_rate=1,
+    CONF_THRESHOLD = 0.5,
     padding=20,
     save_embeddings_path=None,
     save_metadata_path=None
@@ -66,6 +67,7 @@ def process_video(
     processed_frame = 0
     object_id = 0
     cap = None
+    
 
     if not video_path.lower().endswith(VALID_VIDEO_EXTS):
         raise ValueError(f"Unsupported video format: {video_path}")
@@ -103,11 +105,13 @@ def process_video(
             timestamp = frame_no / fps if fps > 0 else 0
 
             results = yolo_model(frame)
-
+            
             for result in results:
                 for box in result.boxes:
                     class_id = int(box.cls)
                     confidence = float(box.conf)
+                    if confidence < CONF_THRESHOLD:
+                        continue
                     x1, y1, x2, y2 = map(int, box.xyxy[0])
 
                     frame_h, frame_w = frame.shape[:2]
@@ -126,10 +130,17 @@ def process_video(
 
                     total_embd.append(vec)
 
+                    hrs = int(timestamp // 3600)
+                    mins = int((timestamp % 3600) // 60)
+                    secs = int(timestamp % 60)
+
+                    timestamp_str = f"{hrs:02d}:{mins:02d}:{secs:02d}"
+                    
+
                     metadata_rows.append({
                         "id": object_id,
                         "frame_no": frame_no,
-                        "timestamp": round(timestamp, 2),
+                        "timestamp": timestamp_str,
                         "yolo_class": result.names[class_id],
                         "confidence": round(confidence, 4)
                     })

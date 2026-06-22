@@ -1,18 +1,9 @@
 import numpy as np
 import pandas as pd
 import torch
-from transformers import AutoProcessor, AutoModel
-
-siglip_model_name = "google/siglip-base-patch16-224"
-
-siglip_model = AutoModel.from_pretrained(siglip_model_name)
-siglip_processor = AutoProcessor.from_pretrained(siglip_model_name)
-
-metadata = pd.read_csv("data/meta_data/vid_metadata.csv")
-total_vector = np.load("data/video_embeddings/vid_embeddings.npy")
 
 
-def get_yolo_classes(query):
+def get_yolo_classes(query,metadata):
     query = query.lower()
 
     class_map = metadata["yolo_class"].dropna().astype(str).str.lower().unique()
@@ -26,7 +17,7 @@ def get_yolo_classes(query):
     return matched_classes
 
 
-def video_search_engine(query, threshold=0.2, top_k=5):
+def video_search_engine(query,metadata,total_vector, siglip_model, siglip_processor,threshold=0.2, top_k=5):
     inputs = siglip_processor(
         text=[query],
         padding=True,
@@ -39,7 +30,7 @@ def video_search_engine(query, threshold=0.2, top_k=5):
 
     query_vec = text_embeddings.squeeze(0).cpu().numpy()
 
-    matched_classes = get_yolo_classes(query)
+    matched_classes = get_yolo_classes(query,metadata)
 
     if not matched_classes:
         print("Query does not match any supported object class.")

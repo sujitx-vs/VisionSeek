@@ -33,4 +33,4 @@ print(f"Execution time: {execution_time:.6f} seconds")
 
 while True:
     query = input("enter the query to search :")
-    results = video_search_engine(query)
+    results = video_search_engine(query,metadata_df,total_embd,siglip_model,siglip_processor)

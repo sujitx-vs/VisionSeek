@@ -1,4 +1,11 @@
+import time
+
+# Start the timer
+start_time = time.perf_counter()
+
+
 from video_processing import load_models, process_video
+from vid_search_engine import video_search_engine
 
 # load once
 yolo_model, siglip_model, siglip_processor = load_models()
@@ -18,3 +25,12 @@ metadata_df, total_embd = process_video(
 
 print(metadata_df.head())
 print(total_embd.shape)
+
+#time consuming analysis
+end_time = time.perf_counter()
+execution_time = end_time - start_time
+print(f"Execution time: {execution_time:.6f} seconds")
+
+while True:
+    query = input("enter the query to search :")
+    results = video_search_engine(query)

@@ -23,8 +23,7 @@ def save_thumbnails(video_path, result_df, output_folder="data/thumbnails"):
             cv2.imwrite(thumbnail_path, frame)
 
             thumbnail_data.append({
-                "thumbnail_path": thumbnail_path,
-                "video_path": video_path,
+                "thumbnail_path": thumbnail_path, 
                 "timestamp": timestamp,
                 "timestamp_seconds": timestamp_seconds,
                 "frame_no": frame_no

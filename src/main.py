@@ -6,11 +6,12 @@ start_time = time.perf_counter()
 
 from video_processing import load_models, process_video
 from vid_search_engine import video_search_engine
+from thumbnail_creator import save_thumbnails
 
 # load once
 yolo_model, siglip_model, siglip_processor = load_models()
 
-video_path = "data/video_samples/The CCTV People Demo 6.mp4"
+video_path = "data/video_samples/CCTV Kit sample Video 480P.mp4"
 
 metadata_df, total_embd = process_video(
     video_path=video_path,
@@ -34,3 +35,8 @@ print(f"Execution time: {execution_time:.6f} seconds")
 while True:
     query = input("enter the query to search :")
     results = video_search_engine(query,metadata_df,total_embd,siglip_model,siglip_processor)
+    try:
+        thumbnails_data = save_thumbnails(video_path,results)
+        print(thumbnails_data)
+    except AttributeError:
+        print("  ")

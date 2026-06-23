@@ -32,11 +32,17 @@ def embed_crop(crop, model, processor):
     inputs = processor(images=crop, return_tensors="pt")
 
     with torch.no_grad():
-        image_features = model.get_image_features(**inputs)
+        outputs = model.get_image_features(**inputs)
+        
+        if hasattr(outputs, "pooler_output"):
+            image_features = outputs.pooler_output
+        elif hasattr(outputs, "image_embeds"):
+            image_features = outputs.image_embeds
+        else:
+            image_features = outputs 
         image_features = image_features / image_features.norm(dim=-1, keepdim=True)
 
     return image_features.squeeze(0).cpu().numpy()
-
 
 def process_video(
     video_path,

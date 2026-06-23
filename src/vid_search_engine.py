@@ -26,11 +26,20 @@ def video_search_engine(query,metadata,total_vector, siglip_model, siglip_proces
     )
 
     with torch.no_grad():
-        text_embeddings = siglip_model.get_text_features(**inputs)
+        outputs = siglip_model.get_text_features(**inputs)
+        
+        # Unbox the object wrapper safely to extract the raw tensor
+        if hasattr(outputs, "pooler_output"):
+            text_embeddings = outputs.pooler_output
+        elif hasattr(outputs, "text_embeds"):
+            text_embeddings = outputs.text_embeds
+        else:
+            text_embeddings = outputs
 
+    # Make absolutely sure you are squeezing text_embeddings here, NOT outputs!
     query_vec = text_embeddings.squeeze(0).cpu().numpy()
 
-    matched_classes = get_yolo_classes(query,metadata)
+    matched_classes = get_yolo_classes(query, metadata)
 
     if not matched_classes:
         print("Query does not match any supported object class.")

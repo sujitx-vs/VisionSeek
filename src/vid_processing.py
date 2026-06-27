@@ -92,9 +92,9 @@ def process_video_with_tracking(
         fps = 30.0
 
     duration_seconds = total_frames / fps
-    step = max(1, int(round(fps * sample_interval_sec)))
-    # step = 2
-
+    #step = max(1, int(round(fps * sample_interval_sec))) # for taking 1 frame per sec.
+    step = 10 # takes half of the total frame in a second. if 60 fps , 20 frames are taken.
+ 
     print("----- VIDEO INFO -----")
     print(f"Path: {video_path}")
     print(f"Resolution: {width}x{height}")
@@ -120,7 +120,6 @@ def process_video_with_tracking(
             ret, frame = cap.read()
             if not ret:
                 break
-
             frame_no = current_frame
             timestamp_sec = frame_no / fps
 
@@ -136,16 +135,17 @@ def process_video_with_tracking(
                 tracker=tracker_cfg,
                 verbose=False
             )
-
+ 
             processed_frames += 1
 
+            # if no output in the result.
             if not results:
                 current_frame += step
                 continue
 
             result = results[0]
 
-            # if no boxes at all in this frame
+            # if no boxes at all in this frame.
             if result.boxes is None or len(result.boxes) == 0:
                 current_frame += step
                 continue

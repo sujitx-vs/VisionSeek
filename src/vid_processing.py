@@ -93,7 +93,7 @@ def process_video_with_tracking(
 
     duration_seconds = total_frames / fps
     #step = max(1, int(round(fps * sample_interval_sec))) # for taking 1 frame per sec.
-    step = 2 # takes half of the total frame in a second. if 60 fps , 20 frames are taken.
+    step = 10 # takes half of the total frame in a second. if 60 fps , 20 frames are taken.
  
     print("----- VIDEO INFO -----")
     print(f"Path: {video_path}")

@@ -9,22 +9,24 @@ yolo_model, siglip_model, siglip_processor = load_models()
 # load saved outputs from video processing
 metadata_df = pd.read_csv("data/meta_data/vid_metadata.csv")
 crop_embeddings = np.load("data/video_embeddings/crop_embeddings.npy")
-
+frame_embeddings = np.load("data/video_embeddings/frame_embeddings.npy")
+while True:
 # query
-query = input("Enter search query: ")
+    query = input("Enter search query: ")
+    
+    results = video_search_engine(
+        query=query,
+        metadata_df=metadata_df,
+        crop_embeddings=crop_embeddings,
+        frame_embeddings=frame_embeddings,
+        siglip_model=siglip_model,
+        siglip_processor=siglip_processor,
+        top_k=5,
+        threshold=None   # keep None for now, tune later
+    )
 
-results = video_search_engine(
-    query=query,
-    metadata_df=metadata_df,
-    crop_embeddings=crop_embeddings,
-    siglip_model=siglip_model,
-    siglip_processor=siglip_processor,
-    top_k=5,
-    threshold=None   # keep None for now, tune later
-)
-
-if results is None:
-    print("No results found.")
-else:
-    print("\nTop matches:")
-    print(results)
+    if results is None:
+        print("No results found.")
+    else:
+        print("\nTop matches:")
+        print(results)

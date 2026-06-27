@@ -5,9 +5,10 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 import shutil
 import os
+import time 
 
-from src.video_processing import load_models, process_video
-from src.vid_search_engine import video_search_engine
+from src.vid_processing import load_models, process_video_with_tracking
+from src.vid_search import video_search_engine
 from src.thumbnail_creator import save_thumbnails
 
 app = FastAPI()
@@ -32,7 +33,8 @@ yolo_model, siglip_model, siglip_processor = load_models()
 # global storage for currently uploaded/processed video
 current_video_path = None
 current_metadata_df = None
-current_total_embd = None
+current_frame_emb = None
+current_crop_emb = None
 
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
@@ -49,7 +51,7 @@ def home(request: Request):
 
 @app.post("/upload-video")
 def upload_video(video: UploadFile = File(...)):
-    global current_video_path, current_metadata_df, current_total_embd
+    global current_video_path, current_metadata_df, current_crop_emb, current_frame_emb
 
     # save uploaded video
     save_path = os.path.join("data/video_samples", video.filename)
@@ -57,22 +59,34 @@ def upload_video(video: UploadFile = File(...)):
     with open(save_path, "wb") as buffer:
         shutil.copyfileobj(video.file, buffer)
 
+
+    start_time = time.perf_counter()
     # process uploaded video
-    metadata_df, total_embd = process_video(
+    metadata_df, crop_embeddings, frame_embeddings = process_video_with_tracking(
         video_path=save_path,
         yolo_model=yolo_model,
         siglip_model=siglip_model,
         siglip_processor=siglip_processor,
-        frame_sample_rate=1,
+        sample_interval_sec=1,
+        conf_threshold=0.5,
         padding=20,
-        save_embeddings_path="data/video_embeddings/vid_embeddings.npy",
+        tracker_cfg="bytetrack.yaml",
+        save_crop_emb_path="data/video_embeddings/crop_embeddings.npy",
+        save_frame_emb_path="data/video_embeddings/frame_embeddings.npy",
         save_metadata_path="data/meta_data/vid_metadata.csv"
+
     )
+    end_time = time.perf_counter()
+
+    processing_time = end_time - start_time
+
+    print(f"Video processing completed in {processing_time:.2f} seconds")
 
     # store current processed video data
     current_video_path = save_path
     current_metadata_df = metadata_df
-    current_total_embd = total_embd
+    current_frame_emb = frame_embeddings
+    current_crop_emb = crop_embeddings
 
     return {
         "message": "Video uploaded and processed successfully",
@@ -87,9 +101,9 @@ class SearchRequest(BaseModel):
 
 @app.post("/search")
 def search_video(request: SearchRequest):
-    global current_video_path, current_metadata_df, current_total_embd
+    global current_video_path, current_metadata_df, current_frame_emb,current_crop_emb
 
-    if current_video_path is None or current_metadata_df is None or current_total_embd is None:
+    if current_video_path is None or current_metadata_df is None:
         raise HTTPException(
             status_code=400,
             detail="No video has been uploaded and processed yet."
@@ -100,9 +114,12 @@ def search_video(request: SearchRequest):
     results = video_search_engine(
         query,
         current_metadata_df,
-        current_total_embd,
+        current_crop_emb,
+        current_frame_emb,
         siglip_model,
-        siglip_processor
+        siglip_processor,
+        top_k=5,
+        threshold=None,
     )
 
     if results is None:

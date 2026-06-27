@@ -158,26 +158,3 @@ def video_search_engine(
     )
     print(results.head(top_k))
     return results.head(top_k)
-
-    # query_vec = embed_text_query(query, siglip_model, siglip_processor)
-
-    # #Matching - cosine similarity because embeddings are normalized
-    # scores = crop_embeddings @ query_vec
-
-    # #top-k indices
-    # top_k = min(top_k, len(scores))
-    # top_indices = np.argsort(scores)[::-1][:top_k]
-
-    # best_score = scores[top_indices[0]]
-    # print(f"Best similarity score: {best_score:.4f}")
-
-    # #optional threshold check
-    # if threshold is not None and best_score < threshold:
-    #     print("No relevant match found.")
-    #     return None
-
-    # #fetch metadata rows
-    # results = metadata_df.iloc[top_indices].copy()
-    # results["similarity"] = scores[top_indices]
-
-    # return results

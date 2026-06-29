@@ -186,10 +186,22 @@ def run_search(query, pipeline_state, progress=gr.Progress(track_tqdm=True)):
 
         gallery_items = []
         timestamps = []
-        for path, (_, row) in zip(thumbnails, verified_df.iterrows()):
-            ts = float(row["timestamp"])
-            caption = f"t={ts:.2f}s · score={row.get('verifier_score', row.get('score', 0)):.3f}"
-            gallery_items.append((path, caption))
+        for thumb in thumbnails:
+
+            ts = float(thumb["timestamp"])
+
+            caption = (
+                f"t={ts:.2f}s · "
+                f"score={thumb['score']:.3f}"
+            )
+
+            gallery_items.append(
+                (
+                    thumb["thumbnail_path"],
+                    caption,
+                )
+            )
+
             timestamps.append(ts)
 
         progress(1.0, desc="Done.")

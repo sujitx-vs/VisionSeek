@@ -7,9 +7,9 @@ import shutil
 import os
 import time 
 
-from src.vid_processing import load_models, process_video_with_tracking
-from src.vid_search import video_search_engine
-from src.thumbnail_creator import save_thumbnails
+from raw_experiments.vid_processing import load_models, process_video_with_tracking
+from raw_experiments.vid_search import video_search_engine
+from raw_experiments.thumbnail_creator import save_thumbnails
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")

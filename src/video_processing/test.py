@@ -20,7 +20,7 @@ from video_retrieval.text_embedding import embed_text_query
 from video_retrieval.semantic_search import semantic_search
 from video_retrieval.frame_fetch import fetch_frame
 from video_retrieval.verifier import verify_frame
-
+from video_retrieval.thumbnail_fetch import save_thumbnails
 
 # -------------------------------
 # Models
@@ -169,22 +169,36 @@ def main():
 
     cap = vid_open(VIDEO_PATH)
 
+    fps = cap.get(cv2.CAP_PROP_FPS)
+
+    verified_results =[]
+
     for _, row in final_results.iterrows():
 
-        frame = fetch_frame(
+        result = verify_frame(
             cap,
-            int(row["frame_no"])
+            int(row["frame_no"]),
+            fps,
+            query
         )
 
-        if frame is None:
-            continue
+        if result["match"]:
 
-        result = verify_frame(frame, query)
+            verified_row = row.copy()
 
-        print("\nFrame :", row["frame_no"])
-        print(result)
+            verified_row["frame_no"] = result["frame_no"]
+            verified_row["timestamp"] = result["timestamp"]
+            verified_row["verifier_score"] = result["score"]
+
+            verified_results.append(verified_row)
+
+    final_results = pd.DataFrame(verified_results)
+    print("\n========== VERIFIED RESULTS ==========\n")
+    print(final_results)
+    thumbnails = save_thumbnails(VIDEO_PATH,final_results)
 
     cap.release()
+
 
 
 if __name__ == "__main__":

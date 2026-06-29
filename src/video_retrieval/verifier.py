@@ -170,35 +170,79 @@ def verify_frame(
 
     obj = tracked_objects[track_id]
 
+    candidate_frames = []
+
+# First appearance
+    candidate_frames.append(
+        (
+            obj["start_frame"],
+            obj["start_time"]
+        )
+    )
+    
+    # Best frames
+    for frame in obj["best_frames"]:
+        candidate_frames.append(
+            (
+                frame["frame_no"],
+                frame["timestamp"]
+            )
+        )
+    
+    # Remove duplicates
+    candidate_frames = list(dict.fromkeys(candidate_frames))
+    
+    # Check first appearance + best frames
+    for frame_no, timestamp in candidate_frames:
+    
+        cap.set(cv2.CAP_PROP_POS_FRAMES, frame_no)
+    
+        ret, frame = cap.read()
+    
+        if not ret:
+            continue
+        
+        print(f"Checking candidate frame {frame_no}")
+    
+        result = _verify_single_frame(frame, query)
+    
+        if result["match"]:
+        
+            return {
+                "match": True,
+                "score": result["score"],
+                "frame_no": frame_no,
+                "timestamp": timestamp,
+            }
+    
+    # If none matched, search through the object's lifetime
     checked = 0
-
-    for det in obj["detections"]:
-
-        frame_no = det["frame_no"]
-
+    
+    for frame_no in range(obj["start_frame"], obj["last_frame"] + 1):
+    
         if frame_no < start_frame:
             continue
-
+        
         if checked >= max_frames:
             break
-
+        
         cap.set(cv2.CAP_PROP_POS_FRAMES, frame_no)
-
+    
         ret, frame = cap.read()
-
+    
         if not ret:
             break
-
-        print(f"Checking Frame : {frame_no}")
-
+        
+        print(f"Checking lifetime frame {frame_no}")
+    
         result = _verify_single_frame(frame, query)
-
+    
         checked += 1
-
+    
         if result["match"]:
-
+        
             fps = cap.get(cv2.CAP_PROP_FPS)
-
+    
             return {
                 "match": True,
                 "score": result["score"],

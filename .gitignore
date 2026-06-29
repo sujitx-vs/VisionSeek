@@ -2,3 +2,4 @@
 /src/__pycache__
 src/video_processing/__pycache__
 src/video_retrieval/__pycache__
+src/utils/__pycache__

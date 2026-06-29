@@ -1,52 +1,58 @@
 import cv2
 import json
 import torch
-from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor
+import transformers
+from transformers import (
+    Qwen2_5_VLForConditionalGeneration,
+    AutoProcessor,
+)
+from src.utils.device import get_device
+
+device = get_device()
+
+print("Transformers:", transformers.__version__)
 
 MODEL_NAME = "Qwen/Qwen2.5-VL-3B-Instruct"
 
+print("Loading processor...")
 processor = AutoProcessor.from_pretrained(MODEL_NAME)
 
-model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-    MODEL_NAME,
-    torch_dtype="auto",
-    device_map="auto"
+print("Loading model...")
+
+model = (
+    Qwen2_5_VLForConditionalGeneration
+    .from_pretrained(
+        MODEL_NAME,
+        torch_dtype=torch.float16 if device.type == "cuda" else torch.float32,
+        device_map=None,
+    )
+    .to(device)
 )
 
 model.eval()
 
+print("Model loaded!")
+print("Device:", device)
 
-def verify_frame(frame, query):
+
+def _verify_single_frame(frame, query):
     """
-    Verify whether a candidate frame satisfies the user's query.
-
-    Returns:
-        {
-            "match": bool,
-            "score": float
-        }
+    Verify a single frame using Qwen.
     """
 
-    # OpenCV (BGR) -> RGB
     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
     prompt = f"""
 You are a semantic retrieval verifier.
 
-A retrieval system has returned this image for the following search query.
-
 User Query:
 "{query}"
 
-Your task is to determine whether the image satisfies the user's search intent.
+Look at the image carefully.
 
-Consider:
-- Correct object(s)
-- Object attributes (color, clothing, size, etc.)
-- Actions (walking, running, riding, sitting...)
-- Scene context when relevant
+Return ONLY valid JSON.
 
-Return ONLY valid JSON in exactly this format:
+Example:
 
 {{
     "match": true,
@@ -54,10 +60,11 @@ Return ONLY valid JSON in exactly this format:
 }}
 
 Rules:
-- score must be between 0.0 and 1.0
-- match=true only if the image clearly satisfies the query.
-- Return no explanation.
-- Return no markdown.
+- score must be between 0 and 1
+- match=true only if the frame clearly satisfies the query
+- no explanation
+- no markdown
+- JSON only
 """
 
     messages = [
@@ -66,51 +73,106 @@ Rules:
             "content": [
                 {
                     "type": "image",
-                    "image": frame_rgb
+                    "image": frame_rgb,
                 },
                 {
                     "type": "text",
-                    "text": prompt
-                }
-            ]
+                    "text": prompt,
+                },
+            ],
         }
     ]
 
     text = processor.apply_chat_template(
         messages,
         tokenize=False,
-        add_generation_prompt=True
+        add_generation_prompt=True,
     )
 
     inputs = processor(
         text=[text],
         images=[frame_rgb],
-        return_tensors="pt"
-    ).to(model.device)
+        return_tensors="pt",
+    )
+
+    inputs = {k: v.to(device) for k, v in inputs.items()}
 
     with torch.no_grad():
+
         output = model.generate(
             **inputs,
             max_new_tokens=30,
             do_sample=False,
-            temperature=0
         )
 
     response = processor.batch_decode(
-        output[:, inputs.input_ids.shape[1]:],
-        skip_special_tokens=True
+        output[:, inputs["input_ids"].shape[1]:],
+        skip_special_tokens=True,
     )[0].strip()
 
+    print("\nRAW RESPONSE:")
+    print(response)
+
     try:
+
         result = json.loads(response)
 
-        result["score"] = float(result["score"])
-        result["match"] = bool(result["match"])
-
-        return result
+        return {
+            "match": bool(result["match"]),
+            "score": float(result["score"]),
+        }
 
     except Exception:
+
         return {
             "match": False,
-            "score": 0.0
+            "score": 0.0,
         }
+
+
+def verify_frame(cap, start_frame, fps, query, duration=3):
+    """
+    Verify frames starting from start_frame until:
+      1. A match is found, or
+      2. duration seconds have been checked.
+
+    Returns
+    -------
+    {
+        "match": bool,
+        "score": float,
+        "frame_no": int | None,
+        "timestamp": float | None
+    }
+    """
+
+    max_frames = int(fps * duration)
+
+    for frame_no in range(start_frame, start_frame + max_frames):
+
+        cap.set(cv2.CAP_PROP_POS_FRAMES, frame_no)
+
+        ret, frame = cap.read()
+
+        if not ret:
+            break
+
+        print(f"\nChecking Frame : {frame_no}")
+
+        result = _verify_single_frame(frame, query)
+
+        if result["match"]:
+
+            return {
+                "match": True,
+                "score": result["score"],
+                "frame_no": frame_no,
+                "timestamp": frame_no / fps
+            }
+
+    return {
+        "match": False,
+        "score": 0.0,
+        "frame_no": None,
+        "timestamp": None
+    }

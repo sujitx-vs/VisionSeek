@@ -6,7 +6,7 @@ from ultralytics import YOLO
 VALID_VIDEO_EXTS = (".mp4", ".avi", ".mov", ".mkv")
 
 
-def vid_track(cap,yolo_model):
+def vid_track(cap,yolo_model,device):
    
     
 
@@ -41,7 +41,8 @@ def vid_track(cap,yolo_model):
         frame,
         persist=True,
         tracker="bytetrack.yaml",
-        verbose=False
+        verbose=False,
+        device=device
         )
         
         timestamp = frame_no / fps

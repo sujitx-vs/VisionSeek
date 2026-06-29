@@ -5,12 +5,16 @@ import torch
 
 VALID_VIDEO_EXTS = (".mp4", ".avi", ".mov", ".mkv")
 
-def embed_image_rgb(img_rgb, siglip_model, siglip_processor):
+def embed_image_rgb(img_rgb, siglip_model, siglip_processor,device):
     """
     Generate normalized SigLIP embedding for an RGB image
     (can be full frame or crop).
     """
     inputs = siglip_processor(images=img_rgb, return_tensors="pt")
+    inputs = {
+        k: v.to(device)
+        for k, v in inputs.items()
+    }
 
     with torch.no_grad():
         feats = siglip_model.get_image_features(**inputs)
@@ -26,7 +30,7 @@ def embed_image_rgb(img_rgb, siglip_model, siglip_processor):
 
     return feats.squeeze(0).cpu().numpy()
 
-def vid_embd(tracked_objects,cap,siglip_model, siglip_processor):
+def vid_embd(tracked_objects,cap,siglip_model, siglip_processor,device):
     frame_embeddings = []
     crop_embeddings = []
     metadata =[]
@@ -49,12 +53,12 @@ def vid_embd(tracked_objects,cap,siglip_model, siglip_processor):
                 continue
 
             frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            frame_emb = embed_image_rgb(frame_rgb, siglip_model, siglip_processor)
+            frame_emb = embed_image_rgb(frame_rgb, siglip_model, siglip_processor,device)
             frame_embeddings.append(frame_emb)
 
 
             crop_rgb = cv2.cvtColor(crop, cv2.COLOR_BGR2RGB)
-            crop_emb = embed_image_rgb(crop_rgb,siglip_model,siglip_processor)
+            crop_emb = embed_image_rgb(crop_rgb,siglip_model,siglip_processor,device)
             crop_embeddings.append(crop_emb)
 
 

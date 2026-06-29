@@ -1,6 +1,6 @@
 import torch
 
-def embed_text_query(query, siglip_model, siglip_processor):
+def embed_text_query(query, siglip_model, siglip_processor,device):
     """
     Convert text query into normalized SigLIP text embedding.
     """
@@ -10,6 +10,10 @@ def embed_text_query(query, siglip_model, siglip_processor):
         truncation=True,
         return_tensors="pt"
     )
+    inputs = {
+        k: v.to(device)
+        for k, v in inputs.items()
+}
 
     with torch.no_grad():
         text_feats = siglip_model.get_text_features(**inputs)

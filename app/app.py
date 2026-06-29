@@ -36,6 +36,7 @@ else:
     from transformers import AutoProcessor, AutoModel
     from ultralytics import YOLO
 
+from src.utils.device import get_device
 from src.video_processing.video_open import vid_open
 from src.video_processing.video_track import vid_track
 from src.video_processing.video_embedding import vid_embd
@@ -47,13 +48,14 @@ from src.video_retrieval.thumbnail_fetch import save_thumbnails
 # -------------------------------------------------------------------
 # Models (loaded once, shared across all sessions/requests)
 # -------------------------------------------------------------------
+device = get_device()
 
 print("Loading YOLO model...")
 yolo_model = YOLO("models/yolo12x.pt")
 
 print("Loading SigLIP model...")
 SIGLIP_NAME = "google/siglip2-so400m-patch14-224"
-siglip_model = AutoModel.from_pretrained(SIGLIP_NAME)
+siglip_model = AutoModel.from_pretrained(SIGLIP_NAME).to(device).eval()
 siglip_processor = AutoProcessor.from_pretrained(SIGLIP_NAME)
 
 THUMB_DIR = "thumbnails"
@@ -80,11 +82,11 @@ def process_video(video_path, progress=gr.Progress(track_tqdm=True)):
         fps = cap.get(cv2.CAP_PROP_FPS)
 
         progress(0.15, desc="Running YOLO + tracking...")
-        tracked_objects = vid_track(cap, yolo_model)
+        tracked_objects = vid_track(cap, yolo_model,device)
 
         progress(0.55, desc="Generating embeddings...")
         frame_embeddings, crop_embeddings, metadata_df = vid_embd(
-            tracked_objects, cap, siglip_model, siglip_processor
+            tracked_objects, cap, siglip_model, siglip_processor,device
         )
 
         cap.release()
@@ -137,7 +139,7 @@ def run_search(query, pipeline_state, progress=gr.Progress(track_tqdm=True)):
         metadata_df = pipeline_state["metadata_df"]
 
         progress(0.1, desc="Embedding query...")
-        query_embedding = embed_text_query(query, siglip_model, siglip_processor)
+        query_embedding = embed_text_query(query, siglip_model, siglip_processor,device)
 
         progress(0.3, desc="Running semantic search...")
         crop_results, frame_results = semantic_search(

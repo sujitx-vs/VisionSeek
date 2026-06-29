@@ -6,6 +6,9 @@ from transformers import (
     Qwen2_5_VLForConditionalGeneration,
     AutoProcessor,
 )
+from src.utils.device import get_device
+
+device = get_device()
 
 print("Transformers:", transformers.__version__)
 
@@ -16,16 +19,17 @@ processor = AutoProcessor.from_pretrained(MODEL_NAME)
 
 print("Loading model...")
 
-model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-    MODEL_NAME,
-    torch_dtype=torch.float32,
-    device_map=None,
+model = (
+    Qwen2_5_VLForConditionalGeneration
+    .from_pretrained(
+        MODEL_NAME,
+        torch_dtype=torch.float16 if device.type == "cuda" else torch.float32,
+        device_map=None,
+    )
+    .to(device)
 )
 
 model.eval()
-
-device = torch.device("cpu")
-model.to(device)
 
 print("Model loaded!")
 print("Device:", device)

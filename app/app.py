@@ -295,4 +295,4 @@ with gr.Blocks(title="Video Semantic Search") as demo:
 
 
 if __name__ == "__main__":
-    demo.queue().launch()
+    demo.queue().launch(share=True)

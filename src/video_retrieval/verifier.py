@@ -1,52 +1,75 @@
 import cv2
 import json
 import torch
-from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor
+import transformers
+from transformers import (
+    Qwen2_5_VLForConditionalGeneration,
+    AutoProcessor,
+)
+
+print("Transformers:", transformers.__version__)
 
 MODEL_NAME = "Qwen/Qwen2.5-VL-3B-Instruct"
 
+
+
+
+
+print("Loading processor...")
 processor = AutoProcessor.from_pretrained(MODEL_NAME)
 
-model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-    MODEL_NAME,
-    torch_dtype="auto",
-    device_map="auto"
-)
+try:
+    print("Loading model...")
+
+    model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+        MODEL_NAME,
+        torch_dtype=torch.float32,
+        device_map=None
+    )
+
+    print("Loaded successfully.")
+
+except Exception as e:
+    import traceback
+    traceback.print_exc()
 
 model.eval()
+
+device = torch.device("cpu")
+model.to(device)
+
+print("Model loaded!")
+print("Device:", device)
 
 
 def verify_frame(frame, query):
     """
-    Verify whether a candidate frame satisfies the user's query.
+    Verify whether a candidate frame satisfies the query.
 
-    Returns:
-        {
-            "match": bool,
-            "score": float
-        }
+    Returns
+    -------
+    {
+        "match": bool,
+        "score": float
+    }
     """
 
-    # OpenCV (BGR) -> RGB
+    print("\n==============================")
+    print("Starting verification...")
+
     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
     prompt = f"""
 You are a semantic retrieval verifier.
 
-A retrieval system has returned this image for the following search query.
-
 User Query:
 "{query}"
 
-Your task is to determine whether the image satisfies the user's search intent.
+Look at the image.
 
-Consider:
-- Correct object(s)
-- Object attributes (color, clothing, size, etc.)
-- Actions (walking, running, riding, sitting...)
-- Scene context when relevant
+Return ONLY valid JSON.
 
-Return ONLY valid JSON in exactly this format:
+Example:
 
 {{
     "match": true,
@@ -54,10 +77,10 @@ Return ONLY valid JSON in exactly this format:
 }}
 
 Rules:
-- score must be between 0.0 and 1.0
-- match=true only if the image clearly satisfies the query.
-- Return no explanation.
-- Return no markdown.
+- score must be between 0 and 1
+- no markdown
+- no explanation
+- JSON only
 """
 
     messages = [
@@ -66,51 +89,73 @@ Rules:
             "content": [
                 {
                     "type": "image",
-                    "image": frame_rgb
+                    "image": frame_rgb,
                 },
                 {
                     "type": "text",
-                    "text": prompt
-                }
-            ]
+                    "text": prompt,
+                },
+            ],
         }
     ]
+
+    print("Applying chat template...")
 
     text = processor.apply_chat_template(
         messages,
         tokenize=False,
-        add_generation_prompt=True
+        add_generation_prompt=True,
     )
+
+    print("Preparing inputs...")
 
     inputs = processor(
         text=[text],
         images=[frame_rgb],
-        return_tensors="pt"
-    ).to(model.device)
+        return_tensors="pt",
+    )
+
+    inputs = {k: v.to(device) for k, v in inputs.items()}
+
+    print("Calling generate...")
 
     with torch.no_grad():
+
         output = model.generate(
             **inputs,
             max_new_tokens=30,
             do_sample=False,
-            temperature=0
         )
 
+    print("Generation finished.")
+
     response = processor.batch_decode(
-        output[:, inputs.input_ids.shape[1]:],
-        skip_special_tokens=True
-    )[0].strip()
+        output[:, inputs["input_ids"].shape[1]:],
+        skip_special_tokens=True,
+    )[0]
+
+    print("\nRAW RESPONSE:")
+    print("--------------------------------")
+    print(repr(response))
+    print("--------------------------------")
 
     try:
+
         result = json.loads(response)
 
-        result["score"] = float(result["score"])
         result["match"] = bool(result["match"])
+        result["score"] = float(result["score"])
+
+        print("JSON Parsed Successfully.")
 
         return result
 
-    except Exception:
+    except Exception as e:
+
+        print("\nJSON Parsing Failed")
+        print(e)
+
         return {
             "match": False,
-            "score": 0.0
+            "score": 0.0,
         }

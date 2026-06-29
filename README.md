@@ -1,121 +1,266 @@
-🎥 VisionSeek
-AI-Powered Video Search Engine for CCTV and Surveillance Footage
+# 🎥 VisionSeek
 
-📖 Overview
-VisionSeek is an intelligent video retrieval system designed to help users quickly locate objects and events within long surveillance videos using natural language queries.
+**AI-Powered Semantic Video Search for Surveillance Footage**
 
-Instead of manually reviewing hours of CCTV footage, users can search for specific objects or scenes and instantly retrieve the relevant timestamps where they appear.
+VisionSeek is a Computer Vision and Multimodal AI project that enables users to search long surveillance videos using natural language instead of manually reviewing hours of footage.
 
-Example queries:
+Users can upload a video, process it once, and retrieve relevant moments by simply typing queries such as:
 
-"truck"
+* `"a person"`
+* `"white car"`
+* `"person carrying a backpack"`
+* `"truck parked near the road"`
+* `"skateboard"`
 
-"person wearing a backpack"
+The system combines object detection, multi-object tracking, vision-language embeddings, and multimodal verification to accurately locate relevant video segments.
 
-"red car"
+---
 
-"man carrying a box"
+# 📖 Overview
 
-The system aims to provide a faster and more efficient way to analyze surveillance footage using modern Computer Vision and Multimodal AI techniques.
+Traditional CCTV analysis requires manually scrubbing through hours of recordings.
 
-🎯 Problem Statement
-Reviewing CCTV recordings is a time-consuming process, especially when searching for a specific object or event within hours of footage.
+VisionSeek converts a video into a searchable semantic index by combining:
 
-VisionSeek aims to solve this problem by enabling semantic search over video content, allowing users to find relevant moments using simple text descriptions.
+* YOLO object detection
+* ByteTrack multi-object tracking
+* SigLIP2 vision-language embeddings
+* Qwen2.5-VL semantic verification
 
-🚀 Current Development Status
-This project is currently under active development. While the repository contains early-stage research experiments, a raw, functional prototype has been successfully built and tested. The baseline pipeline is working, though optimizing detection depth and retrieval accuracy remains the primary focus moving forward.
+Instead of searching by filename or timestamp, users search by meaning.
 
-Completed
-Video Processing Pipeline: Seamless frame extraction and preprocessing.
+---
 
-YOLO-Based Detection: Automated object detection bounding boxes per frame.
+# ✨ Features
 
-Cropping & Embedding Generation: Dynamic cropping of YOLO bounding boxes passed directly into a SigLIP model to extract high-quality vision-language embeddings.
+* 🎥 Upload any surveillance video
+* 🚀 Automatic video indexing
+* 👥 Multi-object tracking using ByteTrack
+* 🧠 Semantic search using SigLIP2 embeddings
+* 🤖 Qwen2.5-VL verification to reduce false positives
+* 🖼 Thumbnail generation for matched results
+* ▶ Click thumbnail to jump directly to the corresponding timestamp
+* 💻 Interactive Gradio interface
 
-Vector Indexing: Storage of generated embeddings mapped alongside exact timestamps.
+---
 
-Search & Retrieval Mechanism: Takes a user's natural language input, matches it against YOLO labels, calculates cosine similarity on SigLIP embeddings, and successfully returns matched thumbnails mapped to their original video timestamps.
+# 🏗 Current Pipeline
 
-Model Evaluation: Initial comparative experiments between CLIP and SigLIP models.
+```
+                 Upload Video
+                      │
+                      ▼
+              OpenCV Video Loader
+                      │
+                      ▼
+        YOLO12 Object Detection + ByteTrack
+                      │
+                      ▼
+         Multi-object Track Generation
+                      │
+                      ▼
+    Store:
+       • Track ID
+       • Start Time
+       • End Time
+       • Best 5 Frames
+                      │
+                      ▼
+        Generate SigLIP2 Embeddings
+         ├── Full Frame
+         └── Object Crop
+                      │
+                      ▼
+        Metadata + Embedding Index
+                      │
+                      ▼
+            User Text Query
+                      │
+                      ▼
+      SigLIP2 Text Embedding
+                      │
+                      ▼
+        Semantic Similarity Search
+         ├── Crop Search
+         └── Frame Search
+                      │
+                      ▼
+          Merge Top Candidates
+                      │
+                      ▼
+      Qwen2.5-VL Verification
+                      │
+                      ▼
+       Generate Result Thumbnails
+                      │
+                      ▼
+      Click Thumbnail → Jump to Video
+```
 
-In Progress & Current Challenges
-While the initial prototype serves as a functional proof of concept, it faces a few key technical limitations that are actively being addressed:
+---
 
-Single Object Bottleneck: The current pipeline frequently defaults to index/detect only one dominant object per frame, occasionally missing secondary objects even if they are clearly visible in the video.
+# 🧠 Models Used
 
-Accuracy Thresholds: Fine-grained semantic matching (e.g., distinguishing specific clothing attributes or subtle actions) requires further optimization.
+## Object Detection
 
-Vector Database Migration: Transitioning the pipeline into a structured FAISS vector database for faster indexing.
+* YOLO12x
 
-Planned Features
-Multi-object tracking and indexing per frame to eliminate the single-object bottleneck.
+Used for detecting objects in every frame.
 
-Advanced timestamp-based UI navigation.
+---
 
-Interactive Streamlit web application dashboard.
+## Multi-Object Tracking
 
-Batch video uploading, parallel indexing, and real-time semantic search results.
+* ByteTrack
 
-🏗 Pipeline Architecture
-Plaintext
-       [ Raw Video Input ]
-                │
-                ▼
-       [ Frame Extraction ]
-                │
-                ▼
-     [ YOLO Object Detection ]
-                │
-                ▼
-       [ Object Cropping ] ─── (Extracts bounding box regions)
-                │
-                ▼
-     [ SigLIP Embeddings ] ─── (Generates multi-modal feature vectors)
-                │
-                ▼
-   [ Vector & Timestamp Map ] ─── (Saves embedding linked to exact timestamp)
-                │
-                ▼
-   [ User Text Query Match ] ─── (Compares YOLO labels + Cosine Similarity)
-                │
-                ▼
-[ Matched Thumbnail + Timestamp ]
-🛠 Technologies
-Python
+Tracks detected objects across the video and assigns persistent Track IDs.
 
-OpenCV
+For every tracked object, VisionSeek stores:
 
-YOLOv8
+* first appearance
+* last appearance
+* best 5 confidence frames
 
-SigLIP (Hugging Face Transformers)
+---
 
-Cosine Similarity / SciPy
+## Vision-Language Embedding
 
-FAISS (Integration Pending)
+* SigLIP2 SO400M Patch14
 
-NumPy & Pandas
+Used to generate embeddings for
 
-Streamlit (UI Pending)
+* full frames
+* detected object crops
 
-📂 Project Structure
-Plaintext
-VisionSeek
+These embeddings are used for semantic retrieval.
+
+---
+
+## Retrieval Verification
+
+* Qwen2.5-VL-3B-Instruct
+
+After semantic retrieval, the top candidates are verified using Qwen Vision-Language Model to reduce false positives before presenting results.
+
+---
+
+# 🚀 Current Project Status
+
+## ✅ Completed
+
+* Video upload interface
+* Video preprocessing pipeline
+* YOLO object detection
+* ByteTrack multi-object tracking
+* First/Last appearance tracking
+* Best-frame selection
+* SigLIP2 frame embeddings
+* SigLIP2 crop embeddings
+* Semantic retrieval
+* Qwen-based result verification
+* Thumbnail generation
+* Interactive Gradio UI
+* GPU support (CUDA)
+
+---
+
+## 🚧 Current Limitations
+
+This is still a prototype and has several known limitations:
+
+* Processes one video at a time.
+* Embeddings are stored in memory (FAISS integration pending).
+* Long videos require significant processing time.
+* Retrieval accuracy depends heavily on YOLO detections.
+* Similar-looking objects may occasionally produce false positives.
+
+---
+
+# 📂 Project Structure
+
+```
+VisionSeek/
 │
-├── data            # Raw surveillance video samples
-├── notebooks       # CLIP vs SigLIP research and initial testing
-├── src             # Core processing, YOLO cropping, and embedding script pipelines
-├── app             # Streamlit application UI layout (In Progress)
-├── models          # Local weights for YOLO and model configs
+├── app/
+│   └── app.py                 # Gradio Interface
+│
+├── src/
+│   ├── video_processing/
+│   │      video_open.py
+│   │      video_track.py
+│   │      video_embedding.py
+│   │
+│   ├── video_retrieval/
+│   │      semantic_search.py
+│   │      verifier.py
+│   │      thumbnail_fetch.py
+│   │      text_embedding.py
+│   │
+│   └── utils/
+│          device.py
+│
+├── models/
+│
+├── data/
+│      thumbnails/
+│
+├── notebooks/
+│      Research experiments
+│
 ├── requirements.txt
+│
 └── README.md
-🔮 Closing Statement & Future Goals
-VisionSeek was born out of a desire to explore the intersection of Computer Vision, Multimodal AI, and rapid Video Retrieval Systems.
+```
 
-The first milestone—proving that a text query can successfully isolate an object crop and map it back to a timestamped thumbnail—has been achieved. The journey ahead is focused entirely on breaking past the single-object detection limit, refining the retrieval confidence scores, and scaling the system to handle complex, multi-object crowded surveillance environments.
+---
 
-📌 Project Status
-🚧 Work in Progress (Functional Prototype Achieved)
+# 🛠 Technologies
 
-👨‍💻 Author
-Sujith V S
+* Python
+* OpenCV
+* PyTorch
+* Transformers
+* Ultralytics YOLO12
+* ByteTrack
+* SigLIP2
+* Qwen2.5-VL
+* NumPy
+* Pandas
+* Gradio
+
+---
+
+# 🔮 Roadmap
+
+The current version is a functional prototype. Future work includes:
+
+* FAISS vector database integration
+* Multiple video indexing
+* Persistent embedding storage
+* Faster approximate nearest-neighbor search
+* Temporal action retrieval
+* Scene-level indexing
+* Better ranking strategy
+* Distributed processing for long videos
+
+---
+
+# 🎯 Future Vision
+
+VisionSeek aims to evolve into a production-ready semantic video search engine capable of indexing thousands of hours of surveillance footage.
+
+The long-term goal is to enable users to retrieve complex events using natural language rather than manually reviewing video recordings.
+
+---
+
+# 👨‍💻 Author
+
+**Sujith V S**
+
+Computer Vision • Multimodal AI • Video Retrieval
+
+---
+
+# 📄 License
+
+This project is intended for research and educational purposes.

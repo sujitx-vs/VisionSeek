@@ -130,11 +130,25 @@ Rules:
         }
 
 
-def verify_frame(cap, start_frame, fps, query, duration=3):
+def verify_frame(
+    cap,
+    tracked_objects,
+    track_id,
+    start_frame,
+    query,
+    max_frames=30,
+):
     """
-    Verify frames starting from start_frame until:
-      1. A match is found, or
-      2. duration seconds have been checked.
+    Verify only frames belonging to the retrieved object.
+
+    Parameters
+    ----------
+    cap : cv2.VideoCapture
+    tracked_objects : dict
+    track_id : int
+    start_frame : int
+    query : str
+    max_frames : int
 
     Returns
     -------
@@ -146,9 +160,27 @@ def verify_frame(cap, start_frame, fps, query, duration=3):
     }
     """
 
-    max_frames = int(fps * duration)
+    if track_id not in tracked_objects:
+        return {
+            "match": False,
+            "score": 0.0,
+            "frame_no": None,
+            "timestamp": None,
+        }
 
-    for frame_no in range(start_frame, start_frame + max_frames):
+    obj = tracked_objects[track_id]
+
+    checked = 0
+
+    for det in obj["detections"]:
+
+        frame_no = det["frame_no"]
+
+        if frame_no < start_frame:
+            continue
+
+        if checked >= max_frames:
+            break
 
         cap.set(cv2.CAP_PROP_POS_FRAMES, frame_no)
 
@@ -157,22 +189,26 @@ def verify_frame(cap, start_frame, fps, query, duration=3):
         if not ret:
             break
 
-        print(f"\nChecking Frame : {frame_no}")
+        print(f"Checking Frame : {frame_no}")
 
         result = _verify_single_frame(frame, query)
 
+        checked += 1
+
         if result["match"]:
+
+            fps = cap.get(cv2.CAP_PROP_FPS)
 
             return {
                 "match": True,
                 "score": result["score"],
                 "frame_no": frame_no,
-                "timestamp": frame_no / fps
+                "timestamp": frame_no / fps,
             }
 
     return {
         "match": False,
         "score": 0.0,
         "frame_no": None,
-        "timestamp": None
+        "timestamp": None,
     }

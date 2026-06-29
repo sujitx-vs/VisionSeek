@@ -163,7 +163,7 @@ def run_search(query, pipeline_state, progress=gr.Progress(track_tqdm=True)):
         verified_rows = []
 
         for _, row in final_results.iterrows():
-            result = verify_frame(cap, int(row["frame_no"]), fps, query)
+            result = verify_frame(cap,pipeline_state["tracked_objects"],int(row["track_id"]),int(row["frame_no"]),query)
             if result["match"]:
                 verified_row = row.copy()
                 verified_row["frame_no"] = result["frame_no"]
